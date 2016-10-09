@@ -112,6 +112,7 @@ function($scope, $http, $timeout) {
         $http.get('http://localhost:18087/api/overview').success(function(succData) {
             var keys = 0;
             var memUsed = 0;
+            var diskUsed = 0;
             var redisData = succData["redis_infos"];
             for (var i in redisData) {
                 var info = redisData[i];
@@ -122,9 +123,13 @@ function($scope, $http, $timeout) {
                     if (k == 'used_memory') {
                         memUsed += parseInt(info[k])
                     }
+                    if (k == 'rocksdb_data_size') {
+                        diskUsed += parseInt(info[k])
+                    }
                 }
             }
             $scope.memUsed = (memUsed / (1024.0 * 1024.0)).toFixed(2);
+            $scope.diskUsed = (diskUsed / (1024.0 * 1024.0)).toFixed(2);
             $scope.keys = keys;
             $scope.product = succData['product'];
             if (succData['ops'] !== undefined && succData['ops'] >= 0) {
@@ -168,26 +173,26 @@ function($scope, $http, $timeout) {
 
 }]);
 
-codisControllers.controller('codisSlotCtl', ['$scope', '$http', '$modal', 'SlotFactory',
-function($scope, $http, $modal, SlotFactory) {
+codisControllers.controller('codisSlotCtl', ['$scope', '$http', '$uibModal', 'SlotFactory',
+function($scope, $http, $uibModal, SlotFactory) {
     $scope.rangeSet = function() {
-        var modalInstance = $modal.open({
+        var uibModalInstance = $uibModal.open({
             templateUrl: 'slotRangeSetModal',
-            controller: ['$scope', '$modalInstance', function($scope, $modalInstance) {
+            controller: ['$scope', '$uibModalInstance', function($scope, $uibModalInstance) {
                 $scope.task = {'from': '-1', 'to': '-1', 'new_group': '-1'};
 
                 $scope.ok = function (task) {
-                    $modalInstance.close(task);
+                    $uibModalInstance.close(task);
                 };
 
                 $scope.cancel = function() {
-                    $modalInstance.close(null);
+                    $uibModalInstance.close(null);
                 }
             }],
             size: 'sm',
         });
 
-        modalInstance.result.then(function (task) {
+        uibModalInstance.result.then(function (task) {
             if (task) {
                 console.log(task);
                 SlotFactory.rangeSet(task, function() {
@@ -200,26 +205,26 @@ function($scope, $http, $modal, SlotFactory) {
     }
 }]);
 
-codisControllers.controller('codisMigrateCtl', ['$scope', '$http', '$modal', 'MigrateStatusFactory', '$timeout',
-function($scope, $http, $modal, MigrateStatusFactory, $timeout) {
+codisControllers.controller('codisMigrateCtl', ['$scope', '$http', '$uibModal', 'MigrateStatusFactory', '$timeout',
+function($scope, $http, $uibModal, MigrateStatusFactory, $timeout) {
     $scope.migrate_tasks = MigrateStatusFactory.tasks();
 
     $scope.migrate = function() {
-        var modalInstance = $modal.open({
+        var uibModalInstance = $uibModal.open({
             templateUrl: 'migrateModal',
-            controller: ['$scope', '$modalInstance', function($scope, $modalInstance) {
+            controller: ['$scope', '$uibModalInstance', function($scope, $uibModalInstance) {
                 $scope.task = {'from': '-1', 'to': '-1', 'new_group': '-1', 'delay': 0};
                 $scope.ok = function (task) {
-                    $modalInstance.close(task);
+                    $uibModalInstance.close(task);
                 };
                 $scope.cancel = function() {
-                    $modalInstance.close(null);
+                    $uibModalInstance.close(null);
                 }
             }],
             size: 'sm',
         });
 
-        modalInstance.result.then(function (task) {
+        uibModalInstance.result.then(function (task) {
             if (task) {
                 MigrateStatusFactory.doMigrate(task, function() {
                     $scope.refresh();
@@ -257,8 +262,8 @@ codisControllers.controller('slotInfoCtl', ['$scope', 'RedisStatusFactory', func
     $scope.slotInfo = RedisStatusFactory.slotInfoByGroupId({'slot_id': $scope.slot.id, 'group_id': $scope.slot.state.migrate_status.from })
 }]);
 
-codisControllers.controller('codisServerGroupMainCtl', ['$scope', '$http', '$modal', '$log', 'ServerGroupsFactory', 'ServerGroupFactory',
-function($scope, $http, $modal, $log, ServerGroupsFactory, ServerGroupFactory) {
+codisControllers.controller('codisServerGroupMainCtl', ['$scope', '$http', '$uibModal', '$log', 'ServerGroupsFactory', 'ServerGroupFactory',
+function($scope, $http, $uibModal, $log, ServerGroupsFactory, ServerGroupFactory) {
 
     $scope.removeServer = function(server) {
         var sure = confirm("are you sure to remove " + server.addr + " from group_" + server.group_id + "?");
@@ -297,21 +302,21 @@ function($scope, $http, $modal, $log, ServerGroupsFactory, ServerGroupFactory) {
 
     $scope.addServer = function(groupId) {
 
-        var modalInstance = $modal.open({
+        var uibModalInstance = $uibModal.open({
             templateUrl: 'addServerToGroupModal',
-            controller: ['$scope', '$modalInstance', function($scope, $modalInstance) {
+            controller: ['$scope', '$uibModalInstance', function($scope, $uibModalInstance) {
                   $scope.server = {'addr': '', 'type': 'slave', 'group_id': groupId};
                   $scope.ok = function (server) {
-                      $modalInstance.close(server);
+                      $uibModalInstance.close(server);
                   };
                   $scope.cancel = function() {
-                      $modalInstance.close(null);
+                      $uibModalInstance.close(null);
                   }
             }],
             size: 'sm',
         });
 
-        modalInstance.result.then(function (server) {
+        uibModalInstance.result.then(function (server) {
             if (server) {
                 ServerGroupFactory.addServer(server, function(succData){
                     $scope.server_groups = ServerGroupsFactory.query();
@@ -323,20 +328,20 @@ function($scope, $http, $modal, $log, ServerGroupsFactory, ServerGroupFactory) {
     }
 
     $scope.addServerGroup = function() {
-        var modalInstance = $modal.open({
+        var uibModalInstance = $uibModal.open({
             templateUrl: 'newServerGroupModal',
-            controller: ['$scope', '$modalInstance', function ($scope, $modalInstance) {
+            controller: ['$scope', '$uibModalInstance', function ($scope, $uibModalInstance) {
                   $scope.ok = function (group) {
-                      $modalInstance.close(group);
+                      $uibModalInstance.close(group);
                   };
                   $scope.cancel = function() {
-                      $modalInstance.close(null);
+                      $uibModalInstance.close(null);
                   }
             }],
             size: 'sm',
         });
 
-        modalInstance.result.then(function (group) {
+        uibModalInstance.result.then(function (group) {
             if (group) {
                 ServerGroupsFactory.create(group, function(succData) {
                     $scope.server_groups = ServerGroupsFactory.query();
