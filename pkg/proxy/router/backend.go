@@ -14,24 +14,26 @@ import (
 )
 
 type BackendConn struct {
-	addr string
-	auth string
-	stop sync.Once
+	addr     string
+	auth     string
+	addrSlot string
+	stop     sync.Once
 
 	input chan *Request
 }
 
-func NewBackendConn(addr, auth string) *BackendConn {
+func NewBackendConn(addr, auth string, slot int) *BackendConn {
 	bc := &BackendConn{
 		addr: addr, auth: auth,
-		input: make(chan *Request, 1024),
+		addrSlot: fmt.Sprintf("%s-%d", addr, slot),
+		input:    make(chan *Request, 1024),
 	}
 	go bc.Run()
 	return bc
 }
 
 func (bc *BackendConn) Run() {
-	log.Infof("backend conn [%p] to %s, start service", bc, bc.addr)
+	log.Infof("backend conn [%p] to %s, start service", bc, bc.addrSlot)
 	for k := 0; ; k++ {
 		err := bc.loopWriter()
 		if err == nil {
@@ -42,14 +44,17 @@ func (bc *BackendConn) Run() {
 				bc.setResponse(r, nil, err)
 			}
 		}
-		log.WarnErrorf(err, "backend conn [%p] to %s, restart [%d]", bc, bc.addr, k)
+		log.WarnErrorf(err, "backend conn [%p] to %s, restart [%d]", bc, bc.addrSlot, k)
 		time.Sleep(time.Millisecond * 50)
 	}
-	log.Infof("backend conn [%p] to %s, stop and exit", bc, bc.addr)
+	log.Infof("backend conn [%p] to %s, stop and exit", bc, bc.addrSlot)
 }
 
 func (bc *BackendConn) Addr() string {
 	return bc.addr
+}
+func (bc *BackendConn) AddrSlot() string {
+	return bc.addrSlot
 }
 
 func (bc *BackendConn) Close() {
@@ -206,8 +211,8 @@ type SharedBackendConn struct {
 	refcnt int
 }
 
-func NewSharedBackendConn(addr, auth string) *SharedBackendConn {
-	return &SharedBackendConn{BackendConn: NewBackendConn(addr, auth), refcnt: 1}
+func NewSharedBackendConn(addr, auth string, slot int) *SharedBackendConn {
+	return &SharedBackendConn{BackendConn: NewBackendConn(addr, auth, slot), refcnt: 1}
 }
 
 func (s *SharedBackendConn) Close() bool {

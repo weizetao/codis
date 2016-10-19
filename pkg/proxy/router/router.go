@@ -4,6 +4,7 @@
 package router
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -93,20 +94,21 @@ func (s *Router) Dispatch(r *Request) error {
 	return slot.forward(r, hkey)
 }
 
-func (s *Router) getBackendConn(addr string) *SharedBackendConn {
-	bc := s.pool[addr]
+func (s *Router) getBackendConn(addr string, slot int) *SharedBackendConn {
+	addrSlot := fmt.Sprintf("%s-%d", addr, slot)
+	bc := s.pool[addrSlot]
 	if bc != nil {
 		bc.IncrRefcnt()
 	} else {
-		bc = NewSharedBackendConn(addr, s.auth)
-		s.pool[addr] = bc
+		bc = NewSharedBackendConn(addr, s.auth, slot)
+		s.pool[addrSlot] = bc
 	}
 	return bc
 }
 
 func (s *Router) putBackendConn(bc *SharedBackendConn) {
 	if bc != nil && bc.Close() {
-		delete(s.pool, bc.Addr())
+		delete(s.pool, bc.AddrSlot())
 	}
 }
 
@@ -148,11 +150,11 @@ func (s *Router) fillSlot(i int, addr, from string, lock bool) {
 			slot.backend.port = []byte(xx[1])
 		}
 		slot.backend.addr = addr
-		slot.backend.bc = s.getBackendConn(addr)
+		slot.backend.bc = s.getBackendConn(addr, i)
 	}
 	if len(from) != 0 {
 		slot.migrate.from = from
-		slot.migrate.bc = s.getBackendConn(from)
+		slot.migrate.bc = s.getBackendConn(from, i)
 	}
 
 	if !lock {
